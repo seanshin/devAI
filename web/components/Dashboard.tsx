@@ -2,9 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { useOrchestrateStore } from '@/lib/store/orchestrateStore';
-import { useWebSocket } from '@/lib/hooks/useWebSocket';
-import { getWebSocketUrl } from '@/lib/api/client';
-import type { WebSocketMessage } from '@/lib/hooks/useWebSocket';
 
 function getApiUrl(): string {
   if (typeof window === 'undefined') {
@@ -24,28 +21,38 @@ export default function Dashboard() {
     setApiUrl(getApiUrl());
   }, []);
 
-  // WebSocket connection for real-time updates
-  const wsUrl = runId
-    ? `${getWebSocketUrl(apiUrl)}/ws/logs/${runId}`
-    : '';
+  // Poll for status updates via REST API
+  useEffect(() => {
+    if (!runId || status === 'completed' || status === 'error') return;
 
-  const { isConnected } = useWebSocket({
-    url: wsUrl,
-    onMessage: (message: WebSocketMessage) => {
-      if (message.type === 'log') {
-        addLog(message.message as string);
-      } else if (message.type === 'progress') {
-        updateProgress(message.progress as number);
-        addLog(`進度: ${message.status}`);
-      } else if (message.type === 'completed') {
-        setStatus('completed');
-        addLog('작업 완료');
-      } else if (message.type === 'error') {
-        setStatus('error');
-        addLog(`오류: ${message.message}`);
+    const pollStatus = async () => {
+      try {
+        const response = await fetch(`${apiUrl}/api/orchestrate/${runId}/status`);
+        if (response.ok) {
+          const data = await response.json();
+
+          // Update progress
+          if (data.progress !== undefined) {
+            updateProgress(data.progress);
+          }
+
+          // Check status
+          if (data.status === 'completed') {
+            setStatus('completed');
+            addLog('✓ 작업 완료');
+          } else if (data.status === 'error') {
+            setStatus('error');
+            addLog('✗ 작업 실패');
+          }
+        }
+      } catch (error) {
+        console.error('[Dashboard] Poll error:', error);
       }
-    },
-  });
+    };
+
+    const interval = setInterval(pollStatus, 2000);
+    return () => clearInterval(interval);
+  }, [runId, status, apiUrl, updateProgress, addLog, setStatus]);
 
   // Auto-scroll logs
   useEffect(() => {

@@ -4,9 +4,6 @@ import { useEffect, useRef, useState } from 'react';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
-import { useWebSocket } from '@/lib/hooks/useWebSocket';
-import { getWebSocketUrl } from '@/lib/api/client';
-import type { WebSocketMessage } from '@/lib/hooks/useWebSocket';
 
 function getApiUrl(): string {
   if (typeof window === 'undefined') {
@@ -35,31 +32,6 @@ export default function EmbeddedTerminal({ isOpen, onClose, sessionId }: Embedde
     setApiUrl(getApiUrl());
   }, []);
 
-  // WebSocket URL for CLI streaming
-  const wsUrl = isOpen && sessionId
-    ? `${getWebSocketUrl(apiUrl)}/ws/cli/${sessionId}`
-    : '';
-
-  const { send: sendWs, isConnected } = useWebSocket({
-    url: wsUrl,
-    onMessage: (message: WebSocketMessage) => {
-      if (!terminal) return;
-
-      if (message.type === 'output') {
-        const output = message.data as string;
-        terminal.write(output);
-      } else if (message.type === 'exit') {
-        terminal.writeln('');
-        terminal.write('$ ');
-        setCurrentCommand('');
-      } else if (message.type === 'error') {
-        terminal.writeln(`\x1b[31m오류: ${message.message}\x1b[0m`);
-        terminal.write('$ ');
-        setCurrentCommand('');
-      }
-    },
-  });
-
   useEffect(() => {
     if (!isOpen || !terminalRef.current) return;
 
@@ -86,7 +58,7 @@ export default function EmbeddedTerminal({ isOpen, onClose, sessionId }: Embedde
     // Add welcome message
     term.writeln('\x1b[36m╭─ AI Orchestrator Terminal\x1b[0m');
     term.writeln(`\x1b[36m├─ Session: ${sessionId || 'unknown'}\x1b[0m`);
-    term.writeln(`\x1b[36m├─ Status: ${isConnected ? '✓ Connected' : '⋯ Connecting'}\x1b[0m`);
+    term.writeln(`\x1b[36m├─ Status: ✓ Ready\x1b[0m`);
     term.writeln(`\x1b[36m╰─ Type 'help' for commands\x1b[0m`);
     term.writeln('');
     term.write('$ ');
@@ -113,13 +85,25 @@ export default function EmbeddedTerminal({ isOpen, onClose, sessionId }: Embedde
             setCurrentCommand('');
           } else if (command.toLowerCase() === 'exit') {
             onClose();
-          } else if (isConnected) {
-            // Send command via WebSocket
-            sendWs({ type: 'execute', command, session_id: sessionId });
-            setCurrentCommand('');
           } else {
-            term.writeln('\x1b[31m오류: 서버 연결 대기 중\x1b[0m');
-            term.write('$ ');
+            // Send command via REST API
+            (async () => {
+              try {
+                const response = await fetch(`${apiUrl}/api/cli/execute`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ command, session_id: sessionId }),
+                });
+                const result = await response.json();
+                if (result.output) {
+                  term.writeln(result.output);
+                }
+                term.write('$ ');
+              } catch (error) {
+                term.writeln(`\x1b[31m오류: ${error}\x1b[0m`);
+                term.write('$ ');
+              }
+            })();
             setCurrentCommand('');
           }
         } else {
@@ -151,7 +135,7 @@ export default function EmbeddedTerminal({ isOpen, onClose, sessionId }: Embedde
       window.removeEventListener('resize', handleResize);
       term.dispose();
     };
-  }, [isOpen, sessionId, isConnected, sendWs, currentCommand, onClose]);
+  }, [isOpen, sessionId, currentCommand, onClose, apiUrl]);
 
   if (!isOpen) return null;
 
