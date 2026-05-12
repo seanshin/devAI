@@ -4,6 +4,7 @@ import asyncio
 import json
 import subprocess
 from typing import Set
+from clients.weru_client import weru_client
 
 router = APIRouter(prefix="/ws", tags=["websocket"])
 
@@ -57,13 +58,74 @@ async def websocket_orchestrate(websocket: WebSocket, session_id: str):
     """
     await manager.connect(websocket)
     try:
+        await manager.send_personal(
+            websocket,
+            {"type": "connected", "session_id": session_id},
+        )
+
         while True:
-            # Wait for client messages (e.g., to cancel operation)
+            # Wait for client messages
             data = await websocket.receive_text()
             message = json.loads(data)
 
             # Handle different message types
-            if message.get("type") == "ping":
+            if message.get("type") == "start":
+                # Start orchestration with natural language input
+                input_text = message.get("input", "").strip()
+                if not input_text:
+                    await manager.send_personal(
+                        websocket,
+                        {"type": "error", "message": "Input cannot be empty"},
+                    )
+                    continue
+
+                try:
+                    # Send initial message
+                    await manager.send_personal(
+                        websocket,
+                        {"type": "log", "data": f"▶️  Processing: {input_text}", "level": "info"},
+                    )
+
+                    # Stream results from WeRU.B orchestrator
+                    async for line in weru_client.orchestrator_stream(session_id):
+                        if line:
+                            # Parse SSE format (data: {...})
+                            if line.startswith("data: "):
+                                try:
+                                    log_data = json.loads(line[6:])
+                                    await manager.send_personal(
+                                        websocket,
+                                        {
+                                            "type": "log",
+                                            "data": log_data.get("message", str(log_data)),
+                                            "level": log_data.get("level", "info"),
+                                        },
+                                    )
+                                except json.JSONDecodeError:
+                                    # Raw text line
+                                    await manager.send_personal(
+                                        websocket,
+                                        {"type": "log", "data": line, "level": "info"},
+                                    )
+                            else:
+                                await manager.send_personal(
+                                    websocket,
+                                    {"type": "log", "data": line, "level": "info"},
+                                )
+
+                    # Send completion message
+                    await manager.send_personal(
+                        websocket,
+                        {"type": "complete", "session_id": session_id},
+                    )
+
+                except Exception as e:
+                    await manager.send_personal(
+                        websocket,
+                        {"type": "error", "message": f"Orchestration error: {str(e)}"},
+                    )
+
+            elif message.get("type") == "ping":
                 await manager.send_personal(
                     websocket,
                     {"type": "pong", "session_id": session_id},

@@ -1,15 +1,51 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useOrchestrateStore } from '@/lib/store/orchestrateStore';
 import { useTerminalStore } from '@/lib/store/terminalStore';
+import { useWebSocket } from '@/lib/hooks/useWebSocket';
 import EmbeddedTerminal from './EmbeddedTerminal';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4500';
 
 export default function ChatInterface() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { status, startExecution } = useOrchestrateStore();
-  const { isOpen: isTerminalOpen, open: openTerminal, close: closeTerminal, setSessionId } = useTerminalStore();
+  const [sessionId, setLocalSessionId] = useState('');
+  const { status, startExecution, setSessionId, addLog, setStatus } = useOrchestrateStore();
+  const { isOpen: isTerminalOpen, open: openTerminal, close: closeTerminal } = useTerminalStore();
+
+  // Initialize session ID on mount
+  useEffect(() => {
+    const newSessionId = `session-${Date.now()}`;
+    setLocalSessionId(newSessionId);
+    setSessionId(newSessionId);
+  }, [setSessionId]);
+
+  // WebSocket connection for orchestrator streaming
+  const { send: sendWsMessage } = useWebSocket({
+    url: sessionId ? `ws://${API_URL.replace('http://', '').replace('https://', '')}/ws/orchestrate/${sessionId}` : '',
+    onMessage: (message: any) => {
+      if (message.type === 'log') {
+        addLog(message.data);
+      } else if (message.type === 'progress') {
+        // Handle progress if needed
+      } else if (message.type === 'complete') {
+        setStatus('completed');
+      } else if (message.type === 'error') {
+        addLog(`❌ Error: ${message.message}`);
+        setStatus('error');
+      }
+    },
+    onConnect: () => {
+      console.log('Connected to orchestrator stream');
+    },
+    onError: (error) => {
+      console.error('WebSocket error:', error);
+      addLog('❌ Connection error');
+      setStatus('error');
+    },
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -17,18 +53,38 @@ export default function ChatInterface() {
 
     setIsLoading(true);
     try {
-      // TODO: API 호출 구현
-      // const result = await orchestratorClient.orchestrate({
-      //   input,
-      //   sessionId: sessionId,
-      // });
-      // startExecution(result.runId);
+      // Call orchestrator API
+      const response = await fetch(`${API_URL}/api/orchestrate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          input: input.trim(),
+          session_id: sessionId,
+        }),
+      });
 
-      // 임시: 로컬 상태만 업데이트
-      startExecution(`demo-run-${Date.now()}`);
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      const { run_id: runId } = await response.json();
+
+      // Start execution
+      startExecution(runId);
       setInput('');
+
+      // Send start message to WebSocket
+      if (sendWsMessage) {
+        sendWsMessage({
+          type: 'start',
+          input: input.trim(),
+          run_id: runId,
+        });
+      }
     } catch (error) {
       console.error('Failed to orchestrate:', error);
+      addLog(`❌ Failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setStatus('error');
     } finally {
       setIsLoading(false);
     }
@@ -113,7 +169,7 @@ export default function ChatInterface() {
       <EmbeddedTerminal
         isOpen={isTerminalOpen}
         onClose={closeTerminal}
-        sessionId={useTerminalStore.getState().sessionId}
+        sessionId={sessionId}
       />
     </div>
   );
