@@ -23,15 +23,13 @@ function getApiUrl(): string {
 export default function ChatInterface() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [sessionId, setLocalSessionId] = useState('');
   const [apiUrl, setApiUrl] = useState('http://localhost:4500');
-  const { status, startExecution, setSessionId, addLog, setStatus } = useOrchestrateStore();
+  const { status, sessionId, startExecution, setSessionId, addLog, setStatus } = useOrchestrateStore();
   const { isOpen: isTerminalOpen, open: openTerminal, close: closeTerminal } = useTerminalStore();
 
   // Initialize session ID and API URL on mount
   useEffect(() => {
     const newSessionId = `session-${Date.now()}`;
-    setLocalSessionId(newSessionId);
     setSessionId(newSessionId);
     // Set API URL based on current hostname
     setApiUrl(getApiUrl());

@@ -33,6 +33,12 @@ export function useWebSocket({
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const connect = useCallback(() => {
+    // Don't connect if URL is empty
+    if (!url) {
+      console.log('WebSocket URL is empty, skipping connection');
+      return;
+    }
+
     if (ws.current && ws.current.readyState === WebSocket.OPEN) {
       return;
     }
