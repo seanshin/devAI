@@ -1,0 +1,120 @@
+'use client';
+
+import { useState } from 'react';
+import { useOrchestrateStore } from '@/lib/store/orchestrateStore';
+import { useTerminalStore } from '@/lib/store/terminalStore';
+import EmbeddedTerminal from './EmbeddedTerminal';
+
+export default function ChatInterface() {
+  const [input, setInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const { status, startExecution } = useOrchestrateStore();
+  const { isOpen: isTerminalOpen, open: openTerminal, close: closeTerminal, setSessionId } = useTerminalStore();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!input.trim() || isLoading) return;
+
+    setIsLoading(true);
+    try {
+      // TODO: API 호출 구현
+      // const result = await orchestratorClient.orchestrate({
+      //   input,
+      //   sessionId: sessionId,
+      // });
+      // startExecution(result.runId);
+
+      // 임시: 로컬 상태만 업데이트
+      startExecution(`demo-run-${Date.now()}`);
+      setInput('');
+    } catch (error) {
+      console.error('Failed to orchestrate:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* 채팅 입력 영역 */}
+      <div className="rounded-lg border border-gray-200 bg-white p-6">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label htmlFor="input" className="block text-sm font-medium text-gray-700">
+              자연어 입력
+            </label>
+            <textarea
+              id="input"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="예: FastAPI 기반 사용자 인증 시스템 만들어줘"
+              rows={4}
+              className="mt-2 w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:outline-none"
+              disabled={isLoading}
+            />
+          </div>
+
+          <div className="flex justify-between gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                const sessionId = `session-${Date.now()}`;
+                setSessionId(sessionId);
+                openTerminal();
+              }}
+              className="rounded-lg border border-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              disabled={isLoading}
+            >
+              터미널 열기
+            </button>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                className="rounded-lg border border-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                disabled={isLoading}
+              >
+                취소
+              </button>
+              <button
+                type="submit"
+                className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
+                disabled={isLoading || status === 'running'}
+              >
+                {isLoading ? '처리 중...' : '실행'}
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      {/* 샘플 프롬프트 */}
+      <div className="rounded-lg border border-gray-200 bg-white p-6">
+        <h3 className="text-sm font-medium text-gray-900">샘플 프롬프트</h3>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          {[
+            'FastAPI 기반 사용자 인증 시스템',
+            'React 컴포넌트 라이브러리',
+            'Docker 배포 스크립트',
+            '데이터베이스 마이그레이션',
+          ].map((prompt) => (
+            <button
+              key={prompt}
+              onClick={() => setInput(prompt)}
+              className="rounded-lg border border-gray-200 px-4 py-3 text-left text-sm text-gray-700 hover:bg-gray-50"
+              disabled={isLoading}
+            >
+              {prompt}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Embedded Terminal */}
+      <EmbeddedTerminal
+        isOpen={isTerminalOpen}
+        onClose={closeTerminal}
+        sessionId={useTerminalStore.getState().sessionId}
+      />
+    </div>
+  );
+}
