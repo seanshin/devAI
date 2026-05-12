@@ -14,6 +14,9 @@ class Settings(BaseSettings):
     WERUB_BASE_URL: str = "https://weve.io.kr/ollama"
     WERUB_API_KEY: str = ""  # Set via environment
 
+    # Mock Mode (for development/testing without WeRU.B API key)
+    MOCK_MODE: bool = False  # Set via environment: MOCK_MODE=true
+
     # Redis Configuration
     REDIS_URL: str = "redis://localhost:6379"
     REDIS_DB: int = 0

@@ -6,11 +6,26 @@ import logging
 
 from config import settings
 from routes import orchestrator, rag, cli, websocket, download
+from clients.weru_client import weru_client
+from clients.mock_weru_client import MockWeRUClient
 
 
 # Setup logging
 logging.basicConfig(level=settings.LOG_LEVEL)
 logger = logging.getLogger(__name__)
+
+# Configure WeRU.B client (mock or real)
+import clients.weru_client as weru_module
+if settings.MOCK_MODE:
+    weru_module.weru_client = MockWeRUClient()
+    logger.warning("🧪 MOCK MODE ENABLED - Using mock WeRU.B client (development only)")
+elif not settings.WERUB_API_KEY:
+    logger.warning(
+        "⚠️  WARNING: WERUB_API_KEY not set. "
+        "Set WERUB_API_KEY environment variable or use MOCK_MODE=true for testing"
+    )
+else:
+    logger.info("🔗 Using real WeRU.B client")
 
 # Create FastAPI app
 app = FastAPI(
