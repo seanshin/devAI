@@ -35,7 +35,7 @@ export function useWebSocket({
   const connect = useCallback(() => {
     // Don't connect if URL is empty
     if (!url) {
-      console.log('WebSocket URL is empty, skipping connection');
+      console.log('[WebSocket] URL is empty, skipping connection');
       return;
     }
 
@@ -44,10 +44,11 @@ export function useWebSocket({
     }
 
     try {
+      console.log('[WebSocket] Attempting to connect to:', url);
       ws.current = new WebSocket(url);
 
       ws.current.onopen = () => {
-        console.log('WebSocket connected:', url);
+        console.log('[WebSocket] ✓ Connected successfully');
         reconnectCount.current = 0;
         onConnect?.();
       };
@@ -55,19 +56,21 @@ export function useWebSocket({
       ws.current.onmessage = (event) => {
         try {
           const message = JSON.parse(event.data);
+          console.log('[WebSocket] Message received:', message.type);
           onMessage?.(message);
         } catch (e) {
-          console.error('Failed to parse WebSocket message:', event.data);
+          console.error('[WebSocket] Failed to parse message:', event.data);
         }
       };
 
       ws.current.onerror = (error) => {
-        console.error('WebSocket error:', error);
+        console.error('[WebSocket] ✗ Error event:', error);
+        console.error('[WebSocket] ReadyState:', ws.current?.readyState);
         onError?.(error);
       };
 
       ws.current.onclose = () => {
-        console.log('WebSocket disconnected');
+        console.log('[WebSocket] Closed (readyState:', ws.current?.readyState, ')');
         onDisconnect?.();
 
         if (
@@ -75,6 +78,7 @@ export function useWebSocket({
           reconnectCount.current < maxReconnectAttempts
         ) {
           reconnectCount.current += 1;
+          console.log(`[WebSocket] Reconnecting... (attempt ${reconnectCount.current}/${maxReconnectAttempts})`);
           reconnectTimeoutRef.current = setTimeout(
             connect,
             reconnectInterval
@@ -82,7 +86,7 @@ export function useWebSocket({
         }
       };
     } catch (error) {
-      console.error('WebSocket connection error:', error);
+      console.error('[WebSocket] Connection error:', error);
       onError?.(error as Event);
     }
   }, [url, onMessage, onConnect, onDisconnect, onError, reconnect, reconnectInterval, maxReconnectAttempts]);
