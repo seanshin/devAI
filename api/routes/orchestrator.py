@@ -43,14 +43,19 @@ async def start_orchestration(request: OrchestrateRequest):
             session_id,
         )
 
-        # Extract or generate run_id
-        # WeRU.B API may not return run_id, so generate locally if needed
-        run_id = result.get("run_id") or f"run-{uuid.uuid4().hex[:12]}"
+        # Extract run_id from response - should be provided by WeRU.B
+        run_id = result.get("run_id")
+        if not run_id:
+            # WeRU.B API should provide run_id, but fallback to session_id if needed
+            import sys
+            print(f"[orchestrator] WARNING: WeRU.B did not return run_id in response", file=sys.stderr)
+            run_id = session_id
 
         import sys
         print(f"[orchestrator] Starting orchestration", file=sys.stderr)
         print(f"[orchestrator] session_id={session_id}, run_id={run_id}", file=sys.stderr)
         print(f"[orchestrator] input={request.input[:50]}...", file=sys.stderr)
+        print(f"[orchestrator] WeRU.B response keys: {list(result.keys())}", file=sys.stderr)
 
         return OrchestrateResponse(
             run_id=run_id,
