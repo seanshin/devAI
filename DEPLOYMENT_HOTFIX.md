@@ -52,15 +52,29 @@ Open browser console (F12) and check:
 
 ## What Changed
 
-### ChatInterface.tsx
-- Replaced static `API_URL = process.env.NEXT_PUBLIC_API_URL`
-- Now uses dynamic `getApiUrl()` function:
-  - Development: `http://localhost:4500`
-  - Production: `http://172.237.14.73:4500` (based on window.location)
+### Components Updated (4 files):
 
-### EmbeddedTerminal.tsx
-- Applied same dynamic API URL logic
-- Ensures CLI terminal also uses correct WebSocket URL
+1. **ChatInterface.tsx**
+   - Replaced static `API_URL` with dynamic `getApiUrl()` function
+   - API URL determined at runtime based on `window.location.hostname`
+
+2. **EmbeddedTerminal.tsx**
+   - Applied same dynamic API URL logic for CLI WebSocket connections
+   - Ensures terminal uses correct hostname in production
+
+3. **Dashboard.tsx**
+   - Updated WebSocket URL calculation to use dynamic API URL
+   - Guarantees real-time log streaming works in production
+
+4. **lib/api/client.ts**
+   - Added `getApiBase()` helper function
+   - Added `createOrchestratorClient()` factory for dynamic client creation
+   - Maintains backward compatibility with existing singleton
+
+### Runtime URL Resolution:
+- **Development (localhost)**: Connects to `http://localhost:4500`
+- **Production (172.237.14.73)**: Connects to `http://172.237.14.73:4500`
+- Determined automatically using `window.location` in browser
 
 ## Rollback (if needed)
 
@@ -74,5 +88,12 @@ npm run start -- --port 3200 &
 
 ---
 
+## Commits
+
+1. `f499878` - Fix: Use dynamic API URL based on hostname for WebSocket connections
+2. `b60cca7` - Fix: Apply dynamic API URL fix to all components (Dashboard + client)
+
+---
+
 **Status**: ✅ Ready for deployment  
-**Commit**: f499878 - Fix: Use dynamic API URL based on hostname for WebSocket connections
+**Latest Commit**: b60cca7
