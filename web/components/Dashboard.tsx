@@ -112,9 +112,9 @@ export default function Dashboard() {
           <h3 className="font-medium text-gray-900">실시간 로그</h3>
           {runId && (
             <div className="flex items-center gap-2">
-              <div className={`h-2 w-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-gray-300'}`} />
+              <div className={`h-2 w-2 rounded-full ${status === 'running' ? 'bg-green-500' : 'bg-gray-300'}`} />
               <span className="text-xs text-gray-600">
-                {isConnected ? '연결됨' : '연결 중...'}
+                {status === 'running' ? '진행 중' : status === 'completed' ? '완료' : '대기 중'}
               </span>
             </div>
           )}
