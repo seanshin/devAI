@@ -6,25 +6,39 @@ import { useTerminalStore } from '@/lib/store/terminalStore';
 import { useWebSocket } from '@/lib/hooks/useWebSocket';
 import EmbeddedTerminal from './EmbeddedTerminal';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4500';
+function getApiUrl(): string {
+  // Use environment variable if set, otherwise use current hostname
+  if (typeof window === 'undefined') {
+    // Server-side rendering
+    return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4500';
+  }
+  // Client-side: use current hostname with port 4500
+  // This ensures both local development (localhost:4500) and production (172.237.14.73:4500) work
+  const protocol = window.location.protocol;
+  const hostname = window.location.hostname;
+  return `${protocol}//${hostname}:4500`;
+}
 
 export default function ChatInterface() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId, setLocalSessionId] = useState('');
+  const [apiUrl, setApiUrl] = useState('http://localhost:4500');
   const { status, startExecution, setSessionId, addLog, setStatus } = useOrchestrateStore();
   const { isOpen: isTerminalOpen, open: openTerminal, close: closeTerminal } = useTerminalStore();
 
-  // Initialize session ID on mount
+  // Initialize session ID and API URL on mount
   useEffect(() => {
     const newSessionId = `session-${Date.now()}`;
     setLocalSessionId(newSessionId);
     setSessionId(newSessionId);
+    // Set API URL based on current hostname
+    setApiUrl(getApiUrl());
   }, [setSessionId]);
 
   // WebSocket connection for orchestrator streaming
   const { send: sendWsMessage } = useWebSocket({
-    url: sessionId ? `ws://${API_URL.replace('http://', '').replace('https://', '')}/ws/orchestrate/${sessionId}` : '',
+    url: sessionId ? `ws://${apiUrl.replace('http://', '').replace('https://', '')}/ws/orchestrate/${sessionId}` : '',
     onMessage: (message: any) => {
       if (message.type === 'log') {
         addLog(message.data);
@@ -54,7 +68,7 @@ export default function ChatInterface() {
     setIsLoading(true);
     try {
       // Call orchestrator API
-      const response = await fetch(`${API_URL}/api/orchestrate`, {
+      const response = await fetch(`${apiUrl}/api/orchestrate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

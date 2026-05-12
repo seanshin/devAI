@@ -7,6 +7,15 @@ import '@xterm/xterm/css/xterm.css';
 import { useWebSocket } from '@/lib/hooks/useWebSocket';
 import type { WebSocketMessage } from '@/lib/hooks/useWebSocket';
 
+function getApiUrl(): string {
+  if (typeof window === 'undefined') {
+    return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4500';
+  }
+  const protocol = window.location.protocol;
+  const hostname = window.location.hostname;
+  return `${protocol}//${hostname}:4500`;
+}
+
 interface EmbeddedTerminalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -17,11 +26,17 @@ export default function EmbeddedTerminal({ isOpen, onClose, sessionId }: Embedde
   const terminalRef = useRef<HTMLDivElement>(null);
   const [terminal, setTerminal] = useState<Terminal | null>(null);
   const [currentCommand, setCurrentCommand] = useState('');
+  const [apiUrl, setApiUrl] = useState('http://localhost:4500');
   const fitAddonRef = useRef<FitAddon | null>(null);
+
+  // Initialize API URL on mount
+  useEffect(() => {
+    setApiUrl(getApiUrl());
+  }, []);
 
   // WebSocket URL for CLI streaming
   const wsUrl = isOpen && sessionId
-    ? `${process.env.NEXT_PUBLIC_API_URL?.replace('http', 'ws')}/ws/cli/${sessionId}`
+    ? `${apiUrl.replace('http', 'ws')}/ws/cli/${sessionId}`
     : '';
 
   const { send: sendWs, isConnected } = useWebSocket({
