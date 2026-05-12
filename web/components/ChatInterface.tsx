@@ -3,8 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useOrchestrateStore } from '@/lib/store/orchestrateStore';
 import { useTerminalStore } from '@/lib/store/terminalStore';
-import { useWebSocket } from '@/lib/hooks/useWebSocket';
-import { getWebSocketUrl } from '@/lib/api/client';
 import EmbeddedTerminal from './EmbeddedTerminal';
 
 function getApiUrl(): string {
@@ -24,7 +22,6 @@ export default function ChatInterface() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [apiUrl, setApiUrl] = useState('http://localhost:4500');
-  const [wsConnected, setWsConnected] = useState(false);
   const { status, sessionId, runId, startExecution, setSessionId, addLog, setStatus } = useOrchestrateStore();
   const { isOpen: isTerminalOpen, open: openTerminal, close: closeTerminal } = useTerminalStore();
 
@@ -36,34 +33,37 @@ export default function ChatInterface() {
     setApiUrl(getApiUrl());
   }, [setSessionId]);
 
-  // Only connect WebSocket after execution starts
-  const shouldConnectWebSocket = !!runId && wsConnected === false;
+  // Poll for status updates via REST API
+  useEffect(() => {
+    if (!runId || status === 'completed' || status === 'error') return;
 
-  // WebSocket connection for orchestrator streaming
-  const { send: sendWsMessage } = useWebSocket({
-    url: shouldConnectWebSocket ? `${getWebSocketUrl(apiUrl)}/ws/orchestrate/${sessionId}` : '',
-    onMessage: (message: any) => {
-      if (message.type === 'log') {
-        addLog(message.data);
-      } else if (message.type === 'progress') {
-        // Handle progress if needed
-      } else if (message.type === 'complete') {
-        setStatus('completed');
-      } else if (message.type === 'error') {
-        addLog(`❌ Error: ${message.message}`);
-        setStatus('error');
+    const pollStatus = async () => {
+      try {
+        const response = await fetch(`${apiUrl}/api/orchestrate/${runId}/status`);
+        if (response.ok) {
+          const data = await response.json();
+          console.log('[ChatInterface] Status response:', data);
+
+          // Update progress if available
+          if (data.progress !== undefined) {
+            // Progress update logic
+          }
+
+          // Check if completed
+          if (data.status === 'completed') {
+            setStatus('completed');
+            addLog('✓ 작업 완료');
+          }
+        }
+      } catch (error) {
+        console.error('[ChatInterface] Poll error:', error);
       }
-    },
-    onConnect: () => {
-      console.log('[ChatInterface] Connected to orchestrator stream');
-      setWsConnected(true);
-    },
-    onError: (error) => {
-      console.error('[ChatInterface] WebSocket error:', error);
-      addLog('❌ Connection error');
-      setStatus('error');
-    },
-  });
+    };
+
+    const interval = setInterval(pollStatus, 2000); // Poll every 2 seconds
+    pollStatus(); // Initial poll
+    return () => clearInterval(interval);
+  }, [runId, status, apiUrl, addLog, setStatus]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -71,7 +71,10 @@ export default function ChatInterface() {
 
     setIsLoading(true);
     try {
+      addLog(`▶️ 실행 중: ${input.trim()}`);
+
       // Call orchestrator API
+      console.log('[ChatInterface] Calling orchestrator API:', `${apiUrl}/api/orchestrate`);
       const response = await fetch(`${apiUrl}/api/orchestrate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -82,26 +85,24 @@ export default function ChatInterface() {
       });
 
       if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
+        throw new Error(`API error: ${response.status} ${response.statusText}`);
       }
 
-      const { run_id: runId } = await response.json();
+      const result = await response.json();
+      console.log('[ChatInterface] API response:', result);
+      const runId = result.run_id || result.runId;
 
-      // Start execution
+      if (!runId) {
+        throw new Error('No run_id in response');
+      }
+
+      // Start execution and polling
       startExecution(runId);
+      addLog(`✓ 실행 시작됨 (ID: ${runId})`);
       setInput('');
-
-      // Send start message to WebSocket
-      if (sendWsMessage) {
-        sendWsMessage({
-          type: 'start',
-          input: input.trim(),
-          run_id: runId,
-        });
-      }
     } catch (error) {
-      console.error('Failed to orchestrate:', error);
-      addLog(`❌ Failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error('[ChatInterface] Failed to orchestrate:', error);
+      addLog(`❌ 오류: ${error instanceof Error ? error.message : 'Unknown error'}`);
       setStatus('error');
     } finally {
       setIsLoading(false);
