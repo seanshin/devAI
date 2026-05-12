@@ -127,14 +127,23 @@ async def websocket_orchestrate(websocket: WebSocket, session_id: str):
 
                         else:
                             # Default: log message (log, error, etc.)
-                            await manager.send_personal(
-                                websocket,
-                                {
-                                    "type": "log",
-                                    "data": event.get("message", event.get("log", str(event))),
-                                    "level": event.get("level", "info"),
-                                },
+                            # Handle both "data" and "message" fields
+                            log_message = (
+                                event.get("data") or
+                                event.get("message") or
+                                event.get("log") or
+                                ""
                             )
+
+                            if log_message:
+                                await manager.send_personal(
+                                    websocket,
+                                    {
+                                        "type": "log",
+                                        "data": str(log_message),
+                                        "level": event.get("level", "info"),
+                                    },
+                                )
 
                     # Ensure completion message is sent (in case stream ends without orchestration_completed)
                     await manager.send_personal(
