@@ -12,13 +12,23 @@ function getApiBase(): string {
 }
 
 /**
- * Convert HTTP/HTTPS API URL to WebSocket URL (WS/WSS)
+ * Get direct WebSocket server URL
+ * In production (172.237.14.73), connect directly to API server on port 4500
+ * In development (localhost), connect to localhost:4500
  */
 export function getWebSocketUrl(apiUrl: string): string {
-  if (apiUrl.startsWith('https://')) {
-    return apiUrl.replace('https://', 'wss://');
+  if (typeof window === 'undefined') {
+    // Server-side: not applicable
+    return apiUrl.replace('http://', 'ws://');
   }
-  return apiUrl.replace('http://', 'ws://');
+
+  // Client-side: Direct connection to API server (port 4500)
+  const protocol = window.location.protocol;
+  const hostname = window.location.hostname;
+  const wsProtocol = protocol === 'https:' ? 'wss:' : 'ws:';
+
+  // Always connect directly to port 4500 for WebSocket
+  return `${wsProtocol}//${hostname}:4500`;
 }
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4500';
