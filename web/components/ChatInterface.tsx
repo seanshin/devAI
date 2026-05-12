@@ -24,7 +24,8 @@ export default function ChatInterface() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [apiUrl, setApiUrl] = useState('http://localhost:4500');
-  const { status, sessionId, startExecution, setSessionId, addLog, setStatus } = useOrchestrateStore();
+  const [wsConnected, setWsConnected] = useState(false);
+  const { status, sessionId, runId, startExecution, setSessionId, addLog, setStatus } = useOrchestrateStore();
   const { isOpen: isTerminalOpen, open: openTerminal, close: closeTerminal } = useTerminalStore();
 
   // Initialize session ID and API URL on mount
@@ -35,9 +36,12 @@ export default function ChatInterface() {
     setApiUrl(getApiUrl());
   }, [setSessionId]);
 
+  // Only connect WebSocket after execution starts
+  const shouldConnectWebSocket = !!runId && wsConnected === false;
+
   // WebSocket connection for orchestrator streaming
   const { send: sendWsMessage } = useWebSocket({
-    url: sessionId ? `${getWebSocketUrl(apiUrl)}/ws/orchestrate/${sessionId}` : '',
+    url: shouldConnectWebSocket ? `${getWebSocketUrl(apiUrl)}/ws/orchestrate/${sessionId}` : '',
     onMessage: (message: any) => {
       if (message.type === 'log') {
         addLog(message.data);
@@ -51,10 +55,11 @@ export default function ChatInterface() {
       }
     },
     onConnect: () => {
-      console.log('Connected to orchestrator stream');
+      console.log('[ChatInterface] Connected to orchestrator stream');
+      setWsConnected(true);
     },
     onError: (error) => {
-      console.error('WebSocket error:', error);
+      console.error('[ChatInterface] WebSocket error:', error);
       addLog('❌ Connection error');
       setStatus('error');
     },
