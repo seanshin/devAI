@@ -7,16 +7,15 @@ import { useOrchestrateWebSocket } from '@/lib/hooks/useOrchestrateWebSocket';
 import EmbeddedTerminal from './EmbeddedTerminal';
 
 function getApiUrl(): string {
-  // Use environment variable if set, otherwise use current hostname
+  // Use environment variable if set, otherwise use relative path
   if (typeof window === 'undefined') {
     // Server-side rendering
     return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4500';
   }
-  // Client-side: use current hostname with port 4500
-  // This ensures both local development (localhost:4500) and production (172.237.14.73:4500) work
-  const protocol = window.location.protocol;
-  const hostname = window.location.hostname;
-  return `${protocol}//${hostname}:4500`;
+
+  // Client-side: use relative path (handled by Next.js rewrites)
+  // /api/* → localhost:4500/api/* (via next.config.ts)
+  return '';  // Empty string means use relative path (/api/...)
 }
 
 export default function ChatInterface() {
