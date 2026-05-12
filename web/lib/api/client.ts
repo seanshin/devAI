@@ -11,6 +11,16 @@ function getApiBase(): string {
   return `${protocol}//${hostname}:4500`;
 }
 
+/**
+ * Convert HTTP/HTTPS API URL to WebSocket URL (WS/WSS)
+ */
+export function getWebSocketUrl(apiUrl: string): string {
+  if (apiUrl.startsWith('https://')) {
+    return apiUrl.replace('https://', 'wss://');
+  }
+  return apiUrl.replace('http://', 'ws://');
+}
+
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4500';
 
 export class OrchestratorClient {

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useOrchestrateStore } from '@/lib/store/orchestrateStore';
 import { useWebSocket } from '@/lib/hooks/useWebSocket';
+import { getWebSocketUrl } from '@/lib/api/client';
 import type { WebSocketMessage } from '@/lib/hooks/useWebSocket';
 
 function getApiUrl(): string {
@@ -25,7 +26,7 @@ export default function Dashboard() {
 
   // WebSocket connection for real-time updates
   const wsUrl = runId
-    ? `${apiUrl.replace('http', 'ws')}/ws/logs/${runId}`
+    ? `${getWebSocketUrl(apiUrl)}/ws/logs/${runId}`
     : '';
 
   const { isConnected } = useWebSocket({

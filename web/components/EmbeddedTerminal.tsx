@@ -5,6 +5,7 @@ import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
 import { useWebSocket } from '@/lib/hooks/useWebSocket';
+import { getWebSocketUrl } from '@/lib/api/client';
 import type { WebSocketMessage } from '@/lib/hooks/useWebSocket';
 
 function getApiUrl(): string {
@@ -36,7 +37,7 @@ export default function EmbeddedTerminal({ isOpen, onClose, sessionId }: Embedde
 
   // WebSocket URL for CLI streaming
   const wsUrl = isOpen && sessionId
-    ? `${apiUrl.replace('http', 'ws')}/ws/cli/${sessionId}`
+    ? `${getWebSocketUrl(apiUrl)}/ws/cli/${sessionId}`
     : '';
 
   const { send: sendWs, isConnected } = useWebSocket({

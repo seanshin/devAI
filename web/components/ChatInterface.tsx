@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useOrchestrateStore } from '@/lib/store/orchestrateStore';
 import { useTerminalStore } from '@/lib/store/terminalStore';
 import { useWebSocket } from '@/lib/hooks/useWebSocket';
+import { getWebSocketUrl } from '@/lib/api/client';
 import EmbeddedTerminal from './EmbeddedTerminal';
 
 function getApiUrl(): string {
@@ -38,7 +39,7 @@ export default function ChatInterface() {
 
   // WebSocket connection for orchestrator streaming
   const { send: sendWsMessage } = useWebSocket({
-    url: sessionId ? `ws://${apiUrl.replace('http://', '').replace('https://', '')}/ws/orchestrate/${sessionId}` : '',
+    url: sessionId ? `${getWebSocketUrl(apiUrl)}/ws/orchestrate/${sessionId}` : '',
     onMessage: (message: any) => {
       if (message.type === 'log') {
         addLog(message.data);
