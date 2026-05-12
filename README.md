@@ -218,10 +218,10 @@ npm run build
 
 #### 2. 서비스 시작
 ```bash
-# API 서버 (포트 4500)
+# API 서버 (포트 4500) - 0.0.0.0으로 외부 접근 허용
 cd /home/weruby/Dev_AI/api
 source venv/bin/activate
-python -m uvicorn main:app --port 4500 --host 127.0.0.1 &
+python -m uvicorn main:app --port 4500 --host 0.0.0.0 &
 
 # Next.js 프로덕션 서버 (포트 3200)
 cd /home/weruby/Dev_AI/web
