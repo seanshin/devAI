@@ -1,58 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useOrchestrateStore } from '@/lib/store/orchestrateStore';
 
-function getApiUrl(): string {
-  if (typeof window === 'undefined') {
-    return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4500';
-  }
-  const protocol = window.location.protocol;
-  const hostname = window.location.hostname;
-  return `${protocol}//${hostname}:4500`;
-}
-
 export default function Dashboard() {
-  const { runId, status, progress, logs, updateProgress, addLog, setStatus } = useOrchestrateStore();
-  const [apiUrl, setApiUrl] = useState('http://localhost:4500');
-
-  // Initialize API URL on mount
-  useEffect(() => {
-    setApiUrl(getApiUrl());
-  }, []);
-
-  // Poll for status updates via REST API
-  useEffect(() => {
-    if (!runId || status === 'completed' || status === 'error') return;
-
-    const pollStatus = async () => {
-      try {
-        const response = await fetch(`${apiUrl}/api/orchestrate/${runId}/status`);
-        if (response.ok) {
-          const data = await response.json();
-
-          // Update progress
-          if (data.progress !== undefined) {
-            updateProgress(data.progress);
-          }
-
-          // Check status
-          if (data.status === 'completed') {
-            setStatus('completed');
-            addLog('✓ 작업 완료');
-          } else if (data.status === 'error') {
-            setStatus('error');
-            addLog('✗ 작업 실패');
-          }
-        }
-      } catch (error) {
-        console.error('[Dashboard] Poll error:', error);
-      }
-    };
-
-    const interval = setInterval(pollStatus, 2000);
-    return () => clearInterval(interval);
-  }, [runId, status, apiUrl, updateProgress, addLog, setStatus]);
+  const { runId, status, progress, logs } = useOrchestrateStore();
 
   // Auto-scroll logs
   useEffect(() => {

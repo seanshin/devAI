@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useOrchestrateStore } from '@/lib/store/orchestrateStore';
 import { useTerminalStore } from '@/lib/store/terminalStore';
+import { useOrchestrateWebSocket } from '@/lib/hooks/useOrchestrateWebSocket';
 import EmbeddedTerminal from './EmbeddedTerminal';
 
 function getApiUrl(): string {
@@ -21,49 +22,15 @@ function getApiUrl(): string {
 export default function ChatInterface() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [apiUrl, setApiUrl] = useState('http://localhost:4500');
   const { status, sessionId, runId, startExecution, setSessionId, addLog, setStatus } = useOrchestrateStore();
   const { isOpen: isTerminalOpen, open: openTerminal, close: closeTerminal } = useTerminalStore();
+  const { startOrchestration } = useOrchestrateWebSocket(sessionId);
 
-  // Initialize session ID and API URL on mount
+  // Initialize session ID on mount
   useEffect(() => {
     const newSessionId = `session-${Date.now()}`;
     setSessionId(newSessionId);
-    // Set API URL based on current hostname
-    setApiUrl(getApiUrl());
   }, [setSessionId]);
-
-  // Poll for status updates via REST API
-  useEffect(() => {
-    if (!runId || status === 'completed' || status === 'error') return;
-
-    const pollStatus = async () => {
-      try {
-        const response = await fetch(`${apiUrl}/api/orchestrate/${runId}/status`);
-        if (response.ok) {
-          const data = await response.json();
-          console.log('[ChatInterface] Status response:', data);
-
-          // Update progress if available
-          if (data.progress !== undefined) {
-            // Progress update logic
-          }
-
-          // Check if completed
-          if (data.status === 'completed') {
-            setStatus('completed');
-            addLog('✓ 작업 완료');
-          }
-        }
-      } catch (error) {
-        console.error('[ChatInterface] Poll error:', error);
-      }
-    };
-
-    const interval = setInterval(pollStatus, 2000); // Poll every 2 seconds
-    pollStatus(); // Initial poll
-    return () => clearInterval(interval);
-  }, [runId, status, apiUrl, addLog, setStatus]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,9 +40,9 @@ export default function ChatInterface() {
     try {
       addLog(`▶️ 실행 중: ${input.trim()}`);
 
-      // Call orchestrator API
-      console.log('[ChatInterface] Calling orchestrator API:', `${apiUrl}/api/orchestrate`);
-      const response = await fetch(`${apiUrl}/api/orchestrate`, {
+      // Call orchestrator API to get run_id
+      console.log('[ChatInterface] Calling orchestrator API:', `${getApiUrl()}/api/orchestrate`);
+      const response = await fetch(`${getApiUrl()}/api/orchestrate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -96,9 +63,14 @@ export default function ChatInterface() {
         throw new Error('No run_id in response');
       }
 
-      // Start execution and polling
+      // Start execution and WebSocket connection
       startExecution(runId);
       addLog(`✓ 실행 시작됨 (ID: ${runId})`);
+
+      // Send start message via WebSocket
+      console.log('[ChatInterface] Starting orchestration via WebSocket');
+      startOrchestration(input.trim(), runId);
+
       setInput('');
     } catch (error) {
       console.error('[ChatInterface] Failed to orchestrate:', error);

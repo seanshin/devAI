@@ -2,6 +2,7 @@
 import aiohttp
 import json
 from typing import AsyncGenerator, Optional, Dict, Any
+import sys
 from config import settings
 
 
@@ -61,7 +62,7 @@ class WeRUClient:
 
     async def orchestrator_stream(
         self, session_id: str
-    ) -> AsyncGenerator[str, None]:
+    ) -> AsyncGenerator[Dict[str, Any], None]:
         """
         Stream execution status from Orchestrator
 
@@ -69,10 +70,13 @@ class WeRUClient:
             session_id: Session ID to stream
 
         Yields:
-            Server-Sent Events from WeRU.B
+            Parsed event dictionaries from WeRU.B SSE stream
         """
         url = f"{self.base_url}/api/orchestrator/run/stream"
         params = {"session_id": session_id}
+
+        print(f"[WeRU.B orchestrator_stream] URL: {url}", file=sys.stderr)
+        print(f"[WeRU.B orchestrator_stream] Params: {params}", file=sys.stderr)
 
         async with aiohttp.ClientSession() as session:
             async with session.get(
@@ -80,12 +84,31 @@ class WeRUClient:
                 params=params,
                 headers=self._auth_headers(),
             ) as response:
-                if response.status == 200:
-                    async for line in response.content:
-                        if line:
-                            yield line.decode().strip()
-                else:
-                    raise Exception(f"WeRU.B API error: {response.status}")
+                print(f"[WeRU.B orchestrator_stream] Status: {response.status}", file=sys.stderr)
+
+                if response.status != 200:
+                    raise Exception(f"WeRU.B Stream error: {response.status}")
+
+                async for line in response.content:
+                    decoded = line.decode().strip()
+
+                    # Skip empty lines and SSE comments
+                    if not decoded or decoded.startswith(":"):
+                        continue
+
+                    # Parse SSE format: "data: {...}"
+                    if decoded.startswith("data: "):
+                        try:
+                            event = json.loads(decoded[6:])
+                            print(f"[WeRU.B orchestrator_stream] Yielding event: {event.get('type', 'unknown')}", file=sys.stderr)
+                            yield event
+                        except json.JSONDecodeError as e:
+                            print(f"[WeRU.B orchestrator_stream] JSON parse error: {e} for: {decoded[6:]}", file=sys.stderr)
+                            # Yield as raw log if JSON parsing fails
+                            yield {"type": "log", "message": decoded[6:], "level": "info"}
+                    else:
+                        # Non-SSE line, wrap as log
+                        yield {"type": "log", "message": decoded, "level": "info"}
 
     async def get_status(self, run_id: str) -> Dict[str, Any]:
         """

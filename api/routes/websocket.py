@@ -87,33 +87,56 @@ async def websocket_orchestrate(websocket: WebSocket, session_id: str):
                     )
 
                     # Stream results from WeRU.B orchestrator
-                    async for line in weru_client.orchestrator_stream(session_id):
-                        if line:
-                            # Parse SSE format (data: {...})
-                            if line.startswith("data: "):
-                                try:
-                                    log_data = json.loads(line[6:])
-                                    await manager.send_personal(
-                                        websocket,
-                                        {
-                                            "type": "log",
-                                            "data": log_data.get("message", str(log_data)),
-                                            "level": log_data.get("level", "info"),
-                                        },
-                                    )
-                                except json.JSONDecodeError:
-                                    # Raw text line
-                                    await manager.send_personal(
-                                        websocket,
-                                        {"type": "log", "data": line, "level": "info"},
-                                    )
-                            else:
-                                await manager.send_personal(
-                                    websocket,
-                                    {"type": "log", "data": line, "level": "info"},
-                                )
+                    async for event in weru_client.orchestrator_stream(session_id):
+                        event_type = event.get("type", "log")
 
-                    # Send completion message
+                        if event_type == "orchestration_completed":
+                            # Orchestration completed
+                            await manager.send_personal(
+                                websocket,
+                                {
+                                    "type": "complete",
+                                    "session_id": session_id,
+                                    "result": event.get("result"),
+                                },
+                            )
+                            break  # Stop streaming
+
+                        elif event_type == "phase_progress":
+                            # Progress update with optional log
+                            await manager.send_personal(
+                                websocket,
+                                {
+                                    "type": "progress",
+                                    "progress": event.get("overall_progress", event.get("progress", 0)),
+                                    "phase": event.get("phase", ""),
+                                    "log": event.get("log", ""),
+                                },
+                            )
+
+                        elif event_type in ("phase_started", "phase_completed"):
+                            # Phase transition messages
+                            await manager.send_personal(
+                                websocket,
+                                {
+                                    "type": "log",
+                                    "data": event.get("message", str(event)),
+                                    "level": "info",
+                                },
+                            )
+
+                        else:
+                            # Default: log message (log, error, etc.)
+                            await manager.send_personal(
+                                websocket,
+                                {
+                                    "type": "log",
+                                    "data": event.get("message", event.get("log", str(event))),
+                                    "level": event.get("level", "info"),
+                                },
+                            )
+
+                    # Ensure completion message is sent (in case stream ends without orchestration_completed)
                     await manager.send_personal(
                         websocket,
                         {"type": "complete", "session_id": session_id},
