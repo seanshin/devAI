@@ -4,7 +4,7 @@ import asyncio
 import json
 import subprocess
 from typing import Set
-from clients.weru_client import weru_client
+import clients.weru_client as weru_module
 
 router = APIRouter(prefix="/ws", tags=["websocket"])
 
@@ -87,7 +87,7 @@ async def websocket_orchestrate(websocket: WebSocket, session_id: str):
                     )
 
                     # Stream results from WeRU.B orchestrator
-                    async for event in weru_client.orchestrator_stream(session_id):
+                    async for event in weru_module.weru_client.orchestrator_stream(session_id):
                         event_type = event.get("type", "log")
 
                         if event_type == "orchestration_completed":
