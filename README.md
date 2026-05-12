@@ -31,9 +31,18 @@ WeRU.B AI Server 기반의 자동 워크플로우 실행 웹 대시보드
 └── .gitignore
 ```
 
-## 빠른 시작
+## 🚀 빠른 시작
 
-### 로컬 개발 (Docker 필요)
+### 프로덕션 배포 (온라인)
+
+**✅ 현재 실행 중:**
+- 🌐 **웹 대시보드**: http://172.237.14.73/ai/
+- 📡 **API 서버**: localhost:4500 (내부)
+- 📋 **배포 문서**: [PRODUCTION_DEPLOYMENT.md](docs/05-deployment/PRODUCTION_DEPLOYMENT.md)
+
+---
+
+### 로컬 개발 (Docker)
 
 ```bash
 docker-compose up
@@ -43,7 +52,7 @@ docker-compose up
 - API Backend: http://localhost:8000
 - Redis: localhost:6379
 
-### 수동 실행
+### 로컬 개발 (수동 실행)
 
 #### Frontend
 ```bash
@@ -120,17 +129,33 @@ redis-server
 ## 환경 설정
 
 ### Frontend (.env.local)
-```
+```bash
+# 개발용
 NEXT_PUBLIC_API_URL=http://localhost:8000
+
+# 프로덕션
+NEXT_PUBLIC_API_URL=http://localhost:4500
+
+# 공통
 NEXT_PUBLIC_WERUB_URL=https://weve.io.kr/ollama
 ```
 
 ### Backend (.env)
-```
+```bash
+# 애플리케이션
 DEBUG=false
+LOG_LEVEL=INFO
+
+# WeRU.B 서버
 WERUB_BASE_URL=https://weve.io.kr/ollama
-WERUB_API_KEY=
+WERUB_API_KEY=<your-api-key>
+
+# Redis
 REDIS_URL=redis://localhost:6379
+REDIS_DB=0
+
+# 세션
+SESSION_TTL_HOURS=24
 ```
 
 ## 기술 스택
@@ -164,15 +189,67 @@ pytest -v
 
 ## 빌드 & 배포
 
-### Docker Build
+### Docker Build (개발용)
 ```bash
 docker-compose build
 ```
 
-### Production Deploy
+### Production Deploy (온라인 서버)
+
+**배포 서버**: 172.237.14.73 (Ubuntu 24.04)
+
+#### 1. 서버 준비
 ```bash
-docker-compose -f docker-compose.yml up -d
+# Git clone
+git clone https://github.com/seanshin/devAI.git
+cd Dev_AI
+
+# Python 환경 설정
+cd api
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+
+# Node 환경 설정
+cd ../web
+npm install
+npm run build
 ```
+
+#### 2. 서비스 시작
+```bash
+# API 서버 (포트 4500)
+cd /home/weruby/Dev_AI/api
+source venv/bin/activate
+python -m uvicorn main:app --port 4500 --host 127.0.0.1 &
+
+# Next.js 프로덕션 서버 (포트 3200)
+cd /home/weruby/Dev_AI/web
+npm run start -- --port 3200 &
+```
+
+#### 3. Nginx 설정
+```bash
+# 설정 파일 활성화
+sudo ln -sf /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
+
+# 검증 및 재로드
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+#### 4. 확인
+```bash
+# 로컬에서
+curl -I http://localhost/ai/
+# → HTTP/1.1 200 OK
+
+# 외부에서
+curl -I http://172.237.14.73/ai/
+# → HTTP/1.1 200 OK
+```
+
+**자세한 내용**: [PRODUCTION_DEPLOYMENT.md](docs/05-deployment/PRODUCTION_DEPLOYMENT.md)
 
 ## 문제 해결
 
