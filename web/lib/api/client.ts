@@ -1,6 +1,17 @@
 import type { OrchestrateRequest, RagSearchQuery, RagSearchResult } from '../types';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+function getApiBase(): string {
+  // Server-side rendering
+  if (typeof window === 'undefined') {
+    return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4500';
+  }
+  // Client-side: use current hostname with port 4500
+  const protocol = window.location.protocol;
+  const hostname = window.location.hostname;
+  return `${protocol}//${hostname}:4500`;
+}
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4500';
 
 export class OrchestratorClient {
   private baseUrl: string;
@@ -87,5 +98,10 @@ export class OrchestratorClient {
   }
 }
 
-// Export singleton instance
+// Factory function for creating a client with dynamic API URL
+export function createOrchestratorClient(): OrchestratorClient {
+  return new OrchestratorClient(getApiBase());
+}
+
+// Export singleton instance (uses static API_BASE for backward compatibility)
 export const orchestratorClient = new OrchestratorClient();

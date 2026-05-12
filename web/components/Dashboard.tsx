@@ -1,16 +1,31 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useOrchestrateStore } from '@/lib/store/orchestrateStore';
 import { useWebSocket } from '@/lib/hooks/useWebSocket';
 import type { WebSocketMessage } from '@/lib/hooks/useWebSocket';
 
+function getApiUrl(): string {
+  if (typeof window === 'undefined') {
+    return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4500';
+  }
+  const protocol = window.location.protocol;
+  const hostname = window.location.hostname;
+  return `${protocol}//${hostname}:4500`;
+}
+
 export default function Dashboard() {
   const { runId, status, progress, logs, updateProgress, addLog, setStatus } = useOrchestrateStore();
+  const [apiUrl, setApiUrl] = useState('http://localhost:4500');
+
+  // Initialize API URL on mount
+  useEffect(() => {
+    setApiUrl(getApiUrl());
+  }, []);
 
   // WebSocket connection for real-time updates
   const wsUrl = runId
-    ? `${process.env.NEXT_PUBLIC_API_URL?.replace('http', 'ws')}/ws/logs/${runId}`
+    ? `${apiUrl.replace('http', 'ws')}/ws/logs/${runId}`
     : '';
 
   const { isConnected } = useWebSocket({
