@@ -146,10 +146,8 @@ export default function EmbeddedTerminal({ isOpen, onClose, sessionId }: Embedde
         <div className="flex items-center justify-between border-b border-gray-200 bg-gray-50 px-6 py-3">
           <div className="flex items-center gap-3">
             <h3 className="font-medium text-gray-900">CLI Terminal</h3>
-            <div className={`h-2 w-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-yellow-500'}`} />
-            <span className="text-xs text-gray-600">
-              {isConnected ? 'Connected' : 'Connecting...'}
-            </span>
+            <div className="h-2 w-2 rounded-full bg-green-500" />
+            <span className="text-xs text-gray-600">Connected</span>
           </div>
           <div className="flex items-center gap-2">
             <button

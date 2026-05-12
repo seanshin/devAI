@@ -45,10 +45,19 @@ class WeRUClient:
                 json=payload,
                 headers=self._auth_headers(),
             ) as response:
+                data = await response.json()
+
+                # DEBUG: Log for diagnostics
+                import sys
+                print(f"[WeRU.B orchestrator_chat] Status: {response.status}", file=sys.stderr)
+                print(f"[WeRU.B orchestrator_chat] URL: {url}", file=sys.stderr)
+                print(f"[WeRU.B orchestrator_chat] Response: {data}", file=sys.stderr)
+
                 if response.status == 200:
-                    return await response.json()
+                    return data
                 else:
-                    raise Exception(f"WeRU.B API error: {response.status}")
+                    error_detail = data.get("detail", "Unknown error") if isinstance(data, dict) else str(data)
+                    raise Exception(f"WeRU.B API error: {response.status} - {error_detail}")
 
     async def orchestrator_stream(
         self, session_id: str
@@ -95,10 +104,19 @@ class WeRUClient:
                 url,
                 headers=self._auth_headers(),
             ) as response:
+                data = await response.json()
+
+                # DEBUG: Log for diagnostics
+                import sys
+                print(f"[WeRU.B get_status] Status: {response.status}", file=sys.stderr)
+                print(f"[WeRU.B get_status] URL: {url}", file=sys.stderr)
+                print(f"[WeRU.B get_status] Response: {data}", file=sys.stderr)
+
                 if response.status == 200:
-                    return await response.json()
+                    return data
                 else:
-                    raise Exception(f"WeRU.B API error: {response.status}")
+                    error_detail = data.get("detail", "Unknown error") if isinstance(data, dict) else str(data)
+                    raise Exception(f"WeRU.B API error: {response.status} - {error_detail}")
 
     async def get_history(self, limit: int = 50) -> Dict[str, Any]:
         """

@@ -43,8 +43,24 @@ async def start_orchestration(request: OrchestrateRequest):
             session_id,
         )
 
+        # IMPORTANT: Check if run_id exists in response
+        run_id = result.get("run_id")
+        if not run_id:
+            # Log the response for debugging
+            import sys
+            print(f"[orchestrator] ERROR: No run_id in WeRU.B response", file=sys.stderr)
+            print(f"[orchestrator] Response data: {result}", file=sys.stderr)
+            print(f"[orchestrator] Response keys: {list(result.keys()) if isinstance(result, dict) else 'not a dict'}", file=sys.stderr)
+
+            # Return error instead of silently using UUID
+            raise ValueError(
+                f"WeRU.B orchestrator_chat response missing 'run_id'. "
+                f"This indicates the WeRU.B API response format is unexpected. "
+                f"Response: {result}"
+            )
+
         return OrchestrateResponse(
-            run_id=result.get("run_id", str(uuid.uuid4())),
+            run_id=run_id,
             status="running",
             message="Orchestration started",
         )
