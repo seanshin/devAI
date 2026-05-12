@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  # Next.js Web Frontend
+  web:
+    build:
+      context: .
+      dockerfile: web/Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - NEXT_PUBLIC_WERUB_URL=https://weve.io.kr/ollama
+    depends_on:
+      - api
+    networks:
+      - orchestrator
+
+  # FastAPI Backend Proxy
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - DEBUG=false
+      - WERUB_BASE_URL=https://weve.io.kr/ollama
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - redis
+    networks:
+      - orchestrator
+
+  # Redis Session Store
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - orchestrator
+
+volumes:
+  redis_data:
+
+networks:
+  orchestrator:
+    driver: bridge
