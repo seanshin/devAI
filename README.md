@@ -1,6 +1,122 @@
-# AI Orchestrator Web Dashboard
+# AI Orchestrator Web Dashboard - ⛔ PROJECT DEPRECATED
 
-WeRU.B AI Server 기반의 자동 워크플로우 실행 웹 대시보드
+**상태**: 🔴 **프로젝트 폐기** (2026-05-13)  
+**사유**: 근본적인 아키텍처 설계 오류로 인한 개발 중단
+
+---
+
+## 📌 프로젝트 폐기 사유
+
+### 실패 원인 분석
+
+#### 1. WebSocket 구현 실패
+- **문제**: Python 모듈 시스템에서 MOCK_MODE 클라이언트 대체 불가
+- **증상**: 
+  - 405 Method Not Allowed 에러
+  - 개발 환경에서 모의 객체(MockWeRUClient) 주입 실패
+  - 실제 WeRU.B API 호출 강제
+
+```python
+# 시도한 방법 (실패)
+import clients.weru_client as weru_module
+if settings.MOCK_MODE:
+    weru_module.weru_client = MockWeRUClient()  # ❌ import 후 대체 불가
+```
+
+#### 2. 근본적인 아키텍처 문제
+- **WebSocket 구현**: SSE (Server-Sent Events) 시도 → 실시간 스트리밍 미지원
+- **실시간 통신**: Next.js와 Python FastAPI 간 비호환성
+- **상태 관리**: 클라이언트/서버 간 상태 동기화 불가능
+- **배포 복잡도**: Docker + Nginx + 멀티포트 관리의 복잡성
+
+#### 3. 기술 스택 부적절성
+- Next.js 개발 서버 (포트 3000)
+- FastAPI 백엔드 (포트 4500/8000)  
+- CORS/프록시 문제로 인한 지속적 설정 변경
+- 로컬 개발과 프로덕션 환경 불일치
+
+### 실패 기록
+
+**주요 이슈:**
+1. `WebSocket_Fix_Summary.md` - WebSocket 수정 시도 실패
+2. `FUNDAMENTAL_ARCHITECTURE_ISSUE.md` - 근본적 설계 문제 문서화
+3. `FIX_ACTION_PLAN.md` - 수정 계획 수립 (미실행)
+4. 최종 커밋: `76659ff Fix: Restart implementation with proper architecture` (미완료)
+
+**최종 상태:**
+- 로컬: 부분 완성 (UI 60%, API 40%)
+- 서버: 운영 중 (172.237.14.73)
+- 테스트: 실패 (405 에러)
+
+---
+
+## 📊 프로젝트 정리 (2026-05-13)
+
+### 정리 내용
+
+**로컬 (2026-05-13 09:33 UTC)**
+- ✅ web/ (486MB) 삭제
+- ✅ api/ (34MB) 삭제
+- ✅ docs/ (344KB) 삭제
+- ✅ docker-compose.yml 삭제
+- ✅ .env.local 삭제
+- ✅ Git 커밋: `135f8df cleanup: Remove Dev_AI project`
+
+**서버 (172.237.14.73, 2026-05-13 12:37 UTC)**
+- ✅ uvicorn (포트 4500) 종료
+- ✅ /home/weruby/Dev_AI/ (724MB) 삭제
+- ✅ Nginx 설정 제거
+- ✅ 온라인 서비스 중단
+
+### 영향도 분석
+- ✅ 다른 프로젝트 영향 없음 (독립적 구조)
+- ✅ GitHub_project 내 다른 서비스 무관
+- ✅ 데이터 백업: ~/Backup/Dev_AI_backup_20260513/
+
+---
+
+## 📚 학습 내용
+
+### 해결되지 않은 기술적 과제
+1. **Python 동적 모듈 로딩**: 런타임 클라이언트 대체 불가
+2. **Next.js ↔ FastAPI 실시간 통신**: CORS/WebSocket 호환성 이슈
+3. **멀티포트 아키텍처**: 개발/배포 환경의 포트 불일치
+
+### 권장 사항
+향후 유사 프로젝트는 다음 구조를 권장:
+- **옵션 1**: Next.js 풀스택 (API Routes + Vercel)
+- **옵션 2**: Python FastAPI 풀스택 (no Next.js)
+- **옵션 3**: 의존성 주입 패턴 사용 (Factory Pattern)
+
+---
+
+## 📋 프로젝트 메타데이터
+
+| 항목 | 값 |
+|------|-----|
+| **시작 날짜** | 2026-05-12 |
+| **종료 날짜** | 2026-05-13 |
+| **기간** | 1일 |
+| **원인** | 아키텍처 설계 오류 |
+| **정리 상태** | ✅ 완료 |
+| **저장소** | https://github.com/seanshin/devAI.git |
+| **마지막 커밋** | 135f8df (cleanup) |
+
+---
+
+## 🔗 관련 문서 (보관용)
+
+프로젝트 정리 전 생성된 문서:
+- `CLEANUP_PLAN.md` - 정리 계획서
+- `COMPLETION_REPORT.md` - 완료 보고서 (미달성)
+- `WEBSOCKET_FIX_SUMMARY.md` - 수정 시도 기록
+- `FUNDAMENTAL_ARCHITECTURE_ISSUE.md` - 근본 원인 분석
+
+---
+
+## ⚙️ 레거시 정보 (참고용)
+
+WeRU.B AI Server 기반의 자동 워크플로우 실행 웹 대시보드 (프로젝트 폐기됨)
 
 ## 프로젝트 구조
 
